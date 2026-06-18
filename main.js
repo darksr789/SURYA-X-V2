@@ -109,10 +109,10 @@ function suryaLog(message, type = 'info') {
 const pluginsDir = path.join(__dirname, 'plugins');
 if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir, { recursive: true });
 const pluginFiles = fs.readdirSync(pluginsDir).filter(f => f.endsWith('.js'));
-arslanLog(`Loading ${pluginFiles.length} plugins...`, 'info');
+suryaLog(`Loading ${pluginFiles.length} plugins...`, 'info');
 for (const file of pluginFiles) {
     try { require(path.join(pluginsDir, file)); }
-    catch (e) { arslanLog(`Failed to load plugin ${file}: ${e.message}`, 'error'); }
+    catch (e) { suryaLog(`Failed to load plugin ${file}: ${e.message}`, 'error'); }
 }
 
 
@@ -127,10 +127,10 @@ async function setupCallHandlers(socket, number) {
                 await socket.sendMessage(call.from, {
                     text: userConfig.REJECT_MSG || config.REJECT_MSG
                 });
-                arslanLog(`Auto-rejected call for ${number} from ${call.from}`, 'info');
+                suryaLog(`Auto-rejected call for ${number} from ${call.from}`, 'info');
             }
         } catch (err) {
-            arslanLog(`Anti-call error for ${number}: ${err.message}`, 'error');
+            suryaLog(`Anti-call error for ${number}: ${err.message}`, 'error');
         }
     });
 }
@@ -144,10 +144,10 @@ function setupAutoRestart(socket, number) {
         if (connection === 'close') {
             const statusCode = lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode;
             const errorMessage = lastDisconnect && lastDisconnect.error && lastDisconnect.error.message;
-            arslanLog(`Connection closed for ${number}: ${statusCode} - ${errorMessage}`, 'warning');
+            suryaLog(`Connection closed for ${number}: ${statusCode} - ${errorMessage}`, 'warning');
 
             if (statusCode === 401 || (errorMessage && errorMessage.includes('401'))) {
-                arslanLog(`Manual unlink detected for ${number}, cleaning up...`, 'warning');
+                suryaLog(`Manual unlink detected for ${number}, cleaning up...`, 'warning');
                 const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
@@ -158,11 +158,11 @@ function setupAutoRestart(socket, number) {
             }
 
             const isNormalError = statusCode === 408 || (errorMessage && errorMessage.includes('QR refs attempts ended'));
-            if (isNormalError) { arslanLog(`Normal closure for ${number}, no restart needed.`, 'info'); return; }
+            if (isNormalError) { suryaLog(`Normal closure for ${number}, no restart needed.`, 'info'); return; }
 
             if (restartAttempts < maxRestartAttempts) {
                 restartAttempts++;
-                arslanLog(`Reconnecting ${number} (${restartAttempts}/${maxRestartAttempts}) in 10s...`, 'warning');
+                suryaLog(`Reconnecting ${number} (${restartAttempts}/${maxRestartAttempts}) in 10s...`, 'warning');
                 const sanitizedNumber = number.replace(/[^0-9]/g, '');
                 activeSockets.delete(sanitizedNumber);
                 socketCreationTime.delete(sanitizedNumber);
@@ -170,10 +170,10 @@ function setupAutoRestart(socket, number) {
                 await delay(10000);
                 try {
                     const mockRes = { headersSent: false, send: () => {}, status: () => mockRes, setHeader: () => {}, json: () => {} };
-                    await arslanPair(number, mockRes);
-                } catch (e) { arslanLog(`Reconnection failed for ${number}: ${e.message}`, 'error'); }
+                    await suryaPair(number, mockRes);
+                } catch (e) { suryaLog(`Reconnection failed for ${number}: ${e.message}`, 'error'); }
             } else {
-                arslanLog(`Max restart attempts reached for ${number}.`, 'error');
+                suryaLog(`Max restart attempts reached for ${number}.`, 'error');
             }
         }
         if (connection === 'open') { restartAttempts = 0; }
@@ -243,7 +243,7 @@ async function suryaPair(number, res = null) {
             browser: ['Mac OS', 'Safari', '10.15.7'],
             getMessage: async (key) => {
                 const msg = await arslanStore.loadMessage(key.remoteJid, key.id);
-                return msg && msg.message ? msg.message : { conversation: 'ARSLAN-MD' };
+                return msg && msg.message ? msg.message : { conversation: 'SURYA-X' };
             }
         });
 
@@ -280,11 +280,11 @@ async function suryaPair(number, res = null) {
 
         // Pairing Code
         if (!conn.authState.creds.registered) {
-            arslanLog(`🔐 Starting NEW pairing process for ${sanitizedNumber}`, 'info');
+            suryaLog(`🔐 Starting NEW pairing process for ${sanitizedNumber}`, 'info');
             try {
                 await delay(1500);
                 const code = await conn.requestPairingCode(sanitizedNumber);
-                arslanLog(`Pairing Code for ${sanitizedNumber}: ${code}`, 'success');
+                suryaLog(`Pairing Code for ${sanitizedNumber}: ${code}`, 'success');
                 if (res && !res.headersSent) {
                     res.send({ code, status: 'new_pairing' });
                 }
@@ -324,8 +324,8 @@ async function suryaPair(number, res = null) {
         conn.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
             if (connection === 'open') {
-                await arslanmd(conn);
-                arslanLog(`Connected: ${sanitizedNumber}`, 'success');
+                await suryax(conn);
+                suryaLog(`Connected: ${sanitizedNumber}`, 'success');
                 const userJid = jidNormalizedUser(conn.user.id);
                 await addNumberToMongoDB(sanitizedNumber);
                 if (!existingSession) {
@@ -337,7 +337,7 @@ async function suryaPair(number, res = null) {
             }
             if (connection === 'close') {
                 const reason = lastDisconnect && lastDisconnect.error && lastDisconnect.error.output && lastDisconnect.error.output.statusCode;
-                if (reason === DisconnectReason.loggedOut) arslanLog(`Session logged out.`, 'error');
+                if (reason === DisconnectReason.loggedOut) suryaLog(`Session logged out.`, 'error');
             }
         });
 
@@ -430,7 +430,7 @@ async function suryaPair(number, res = null) {
                     key: { remoteJid: 'status@broadcast', participant: '13135550002@s.whatsapp.net', fromMe: false, id: createSerial(16).toUpperCase() },
                     message: { contactMessage: {
                         displayName: '© 𝐒𝐔𝐑𝐘𝐀-𝐗 ',
-                        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:ARSLAN-MD BOY\nORG:𝐒𝐔𝐑𝐘𝐀-𝐗  BOY;\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
+                        vcard: `BEGIN:VCARD\nVERSION:3.0\nFN:SURYA-X BOY\nORG:𝐒𝐔𝐑𝐘𝐀-𝐗  BOY;\nTEL;type=CELL;type=VOICE;waid=13135550002:13135550002\nEND:VCARD`,
                         contextInfo: { stanzaId: createSerial(16).toUpperCase(), participant: '0@s.whatsapp.net', quotedMessage: { conversation: '© 𝐒𝐔𝐑𝐘𝐀-𝐗 ' } }
                     }},
                     messageTimestamp: Math.floor(Date.now() / 1000),
@@ -448,7 +448,7 @@ async function suryaPair(number, res = null) {
                         if (cmd.react) conn.sendMessage(from, { react: { text: cmd.react, key: mek.key } });
                         try {
                             cmd.function(conn, mek, m, { from, quoted: mek, body, isCmd, command, args, q, text, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, isCreator, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply, config, myquoted });
-                        } catch (e) { arslanLog(`PLUGIN ERROR [${command}]: ${e.message}`, 'error'); }
+                        } catch (e) { suryaLog(`PLUGIN ERROR [${command}]: ${e.message}`, 'error'); }
                     }
                 }
 
@@ -463,7 +463,7 @@ async function suryaPair(number, res = null) {
                     else if (evCmd.on === 'sticker' && mek.type === 'stickerMessage') evCmd.function(conn, mek, m, ctx);
                 });
 
-            } catch (e) { arslanLog(`Message handler error: ${e.message}`, 'error'); }
+            } catch (e) { suryaLog(`Message handler error: ${e.message}`, 'error'); }
         });
 
     } catch (err) {
@@ -500,7 +500,7 @@ router.get('/disconnect', async (req, res) => {
     } catch (e) { res.status(500).json({ error: 'Failed to disconnect' }); }
 });
 router.get('/active', (req, res) => res.json({ count: activeSockets.size, numbers: Array.from(activeSockets.keys()) }));
-router.get('/ping', (req, res) => res.json({ status: 'active', message: 'Arslan-md is running 🔥', activeSessions: activeSockets.size }));
+router.get('/ping', (req, res) => res.json({ status: 'active', message: 'SURYA-X is running 🔥', activeSessions: activeSockets.size }));
 router.get('/connect-all', async (req, res) => {
     try {
         const numbers = await getAllNumbersFromMongoDB();
@@ -509,7 +509,7 @@ router.get('/connect-all', async (req, res) => {
         for (const number of numbers) {
             if (activeSockets.has(number)) { results.push({ number, status: 'already_connected' }); continue; }
             const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
-            await arslanPair(number, mockRes);
+            await suryaPair(number, mockRes);
             results.push({ number, status: 'connection_initiated' });
             await delay(1000);
         }
@@ -556,18 +556,18 @@ router.get('/stats', async (req, res) => {
 
 async function autoReconnectFromMongoDB() {
     try {
-        arslanLog('Attempting auto-reconnect from MongoDB...', 'info');
+        suryaLog('Attempting auto-reconnect from MongoDB...', 'info');
         const numbers = await getAllNumbersFromMongoDB();
-        if (!numbers.length) { arslanLog('No numbers in MongoDB', 'info'); return; }
+        if (!numbers.length) { suryaLog('No numbers in MongoDB', 'info'); return; }
         for (const number of numbers) {
             if (!activeSockets.has(number)) {
                 const mockRes = { headersSent: false, json: () => {}, status: () => mockRes };
-                await arslanPair(number, mockRes);
+                await suryaLog(number, mockRes);
                 await delay(2000);
             }
         }
-        arslanLog('Auto-reconnect completed', 'success');
-    } catch (e) { arslanLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error'); }
+        suryaLog('Auto-reconnect completed', 'success');
+    } catch (e) { suryaLog(`autoReconnectFromMongoDB error: ${e.message}`, 'error'); }
 }
 
 setTimeout(() => { autoReconnectFromMongoDB(); }, 3000);
@@ -584,7 +584,7 @@ process.on('exit', () => {
 });
 
 process.on('uncaughtException', (err) => {
-    arslanLog(`Uncaught exception: ${err.message}`, 'error');
+    suryaLog(`Uncaught exception: ${err.message}`, 'error');
 });
 
 module.exports = router;
